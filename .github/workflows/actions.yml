@@ -1,11 +1,13 @@
 name: run main.py
 
-# Runs at 00:00 UTC every Monday
 on:
+  workflow_dispatch:      # allows manual runs from the Actions UI
+  # push:                 # uncomment if you want it to run on every push to main
+  #   branches:
+  #     - main
   schedule:
-    - cron: '0 0 * * 1' # At 00:00 UTC on Monday
+    - cron: '0 0 * * 1'   # At 00:00 UTC on Monday
 
-# Give workflow token write permission so push actions succeed
 permissions:
   contents: write
 
@@ -13,11 +15,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-
       - name: Checkout repo content
         uses: actions/checkout@v5
         with:
-          fetch-depth: 0        # full history, helpful if you push/tags
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v4
