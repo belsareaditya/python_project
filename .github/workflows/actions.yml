@@ -6,8 +6,7 @@ on:
     branches:
       - main
   schedule:
-    - cron: '0 0 * * 1'   # also run every Monday at 00:00 UTC
-
+    - cron: '*/5 * * * *'  # run every 5 minutes
 permissions:
   contents: write
 
