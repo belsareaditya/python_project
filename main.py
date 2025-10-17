@@ -1,29 +1,16 @@
-import logging
-import logging.handlers
-import requests
-import datetime
+import json
+import os
 import random
+import requests
+from datetime import datetime
 
-# --- Logger Setup ---
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-logger_file_handler = logging.handlers.RotatingFileHandler(
-    "status.log",
-    maxBytes=1024 * 1024,
-    backupCount=1,
-    encoding="utf8",
-)
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-logger_file_handler.setFormatter(formatter)
-logger.addHandler(logger_file_handler)
+USED_FILE = "used_quotes.json"
+LOG_FILE = "status.log"
+CITY = "Nagpur"
+COUNTRY = "IN"
+WEATHER_API = f"https://weather.talkpython.fm/api/weather/?city={CITY}&country={COUNTRY}"
 
-# Optional: Also show logs in the console
-console_handler = logging.StreamHandler()
-console_handler.setFormatter(formatter)
-logger.addHandler(console_handler)
-
-# --- Quotes List ---
-quotes = [
+QUOTES = [
     "Keep your face always toward the sunshine—and shadows will fall behind you. – Walt Whitman",
     "Success is not final, failure is not fatal: It is the courage to continue that counts. – Winston Churchill",
     "The best way to get started is to quit talking and begin doing. – Walt Disney",
@@ -36,22 +23,48 @@ quotes = [
     "Dream it. Wish it. Do it."
 ]
 
-# --- Generate a Daily Quote ---
-today = datetime.date.today()
-random.seed(today.toordinal())  # Ensures same quote for the day
-quote_of_the_day = random.choice(quotes)
+def load_used():
+    if not os.path.exists(USED_FILE):
+        return []
+    try:
+        with open(USED_FILE, "r", encoding="utf8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+def save_used(used):
+    with open(USED_FILE, "w", encoding="utf8") as f:
+        json.dump(used, f, ensure_ascii=False, indent=2)
+
+def pick_quote():
+    used = load_used()
+    unused = [q for q in QUOTES if q not in used]
+    if not unused:
+        used = []        # reset when all used
+        unused = QUOTES.copy()
+    choice = random.choice(unused)
+    used.append(choice)
+    save_used(used)
+    return choice
+
+def fetch_weather():
+    try:
+        r = requests.get(WEATHER_API, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        return data.get("forecast", {}).get("temp", "N/A")
+    except Exception:
+        return "N/A"
+
+def write_log(text):
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    line = f"{ts} - {text}\n"
+    with open(LOG_FILE, "a", encoding="utf8") as f:
+        f.write(line)
+    print(text)
 
 if __name__ == "__main__":
-    try:
-        # Fetch weather for Nagpur, India
-        r = requests.get('https://weather.talkpython.fm/api/weather/?city=Nagpur&country=IN')
-        if r.status_code == 200:
-            data = r.json()
-            temperature = data["forecast"]["temp"]
-
-            logger.info(f"Weather in Nagpur: {temperature}°C")
-            logger.info(f"Quote of the Day: \"{quote_of_the_day}\"")
-        else:
-            logger.error(f"Failed to fetch weather data. Status code: {r.status_code}")
-    except Exception as e:
-        logger.exception(f"An error occurred: {e}")
+    quote = pick_quote()
+    temp = fetch_weather()
+    write_log(f"Weather in {CITY}: {temp}°C")
+    write_log(f"Quote of the run: \"{quote}\"")
