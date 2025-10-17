@@ -2,17 +2,22 @@ name: run main.py
 
 on:
   workflow_dispatch:      # allows manual runs from the Actions UI
-  # push:                 # uncomment if you want it to run on every push to main
-  #   branches:
-  #     - main
+  push:                   # run only when commits are pushed to 'main'
+    branches:
+      - main
   schedule:
-    - cron: '0 0 * * 1'   # At 00:00 UTC on Monday
+    - cron: '0 0 * * 1'   # also run every Monday at 00:00 UTC
 
 permissions:
   contents: write
 
 jobs:
   build:
+    # Prevent infinite loops: skip runs triggered by workflow's own commits
+    if: >
+      github.event_name != 'push' ||
+      (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]'))
+
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo content
@@ -40,7 +45,8 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add -A
-          git diff-index --quiet HEAD || git commit -m "updated logs" --allow-empty
+          # commit with [skip ci] to avoid re-triggering workflow
+          git diff-index --quiet HEAD || git commit -m "updated logs [skip ci]" --allow-empty
 
       - name: Push changes
         uses: ad-m/github-push-action@v0.6.0
